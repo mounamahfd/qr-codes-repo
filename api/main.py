@@ -48,7 +48,7 @@ def upload_to_github(file_name, image_data):
 
     # Get the current file content (if any) to create a new commit
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code == 404:
         # Directory doesn't exist, so we will attempt to create it by adding a .gitkeep file
         print("Directory doesn't exist, creating it now.")
@@ -85,6 +85,7 @@ def upload_to_github(file_name, image_data):
         raise Exception(f"Error uploading file to GitHub: {response.text}")
 
     return f"https://{REPO_OWNER}.github.io/{REPO_NAME}/{file_name}"
+
 
 
 # Function to check if the URL is valid using regular expressions
