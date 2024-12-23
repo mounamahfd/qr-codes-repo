@@ -42,7 +42,6 @@ class QRRequest(BaseModel):
     url: str
     
 def upload_to_github(file_name, image_data):
-    # GitHub API URL to check for file existence in a repository
     url = f"{GITHUB_API_URL}/{file_name}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
 
@@ -50,34 +49,47 @@ def upload_to_github(file_name, image_data):
     response = requests.get(url, headers=headers)
 
     if response.status_code == 404:
-        # Directory doesn't exist, so we will attempt to create it by adding a .gitkeep file
-        print("Directory doesn't exist, creating it now.")
+        # Directory doesn't exist, attempt to create it
+        print(f"Directory for {file_name} doesn't exist, attempting to create it.")
         
-        # Create a temporary file in the qr_codes directory to create the directory on GitHub
-        temp_file_name = "qr_codes/.gitkeep"  # Using .gitkeep to create the directory
+        # Create the .gitkeep file to ensure the directory exists
+        temp_file_name = "qr_codes/.gitkeep"  # .gitkeep file to create the directory
         commit_data = {
             "message": "Create qr_codes directory",
-            "content": base64.b64encode(b"").decode("utf-8"),  # Empty content for the .gitkeep file
+            "content": base64.b64encode(b"").decode("utf-8"),
             "branch": BRANCH_NAME,
         }
 
-        # Attempt to create the directory by uploading a .gitkeep file
+        # Attempt to create the directory by uploading .gitkeep file
         response = requests.put(f"{GITHUB_API_URL}/{temp_file_name}", headers=headers, json=commit_data)
-
-        if response.status_code != 200 and response.status_code != 201:
-            print(f"Error creating directory in GitHub: {response.text}")
-            raise Exception(f"Error creating directory in GitHub: {response.text}")
-
+        
+        if response.status_code not in [200, 201]:
+            print(f"Error creating directory: {response.text}")
+            raise Exception(f"Error creating directory: {response.text}")
         print("Directory created successfully.")
-    
-    # Now proceed to upload the actual QR code image
+
+    # Now upload the actual QR code image
     commit_data = {
         "message": f"Add QR code for {file_name}",
         "content": image_data,
         "branch": BRANCH_NAME,
     }
 
-    # Make the actual file upload request
+    response = requests.put(url, headers=headers, json=commit_data)
+
+    if response.status_code not in [200, 201]:
+        print(f"Error uploading file to GitHub: {response.text}")
+        raise Exception(f"Error uploading file to GitHub: {response.text}")
+
+    return f"https://{REPO_OWNER}.github.io/{REPO_NAME}/{file_name}"
+
+    # Now upload the actual QR code image
+    commit_data = {
+        "message": f"Add QR code for {file_name}",
+        "content": image_data,
+        "branch": BRANCH_NAME,
+    }
+
     response = requests.put(url, headers=headers, json=commit_data)
 
     if response.status_code != 200 and response.status_code != 201:
@@ -85,8 +97,6 @@ def upload_to_github(file_name, image_data):
         raise Exception(f"Error uploading file to GitHub: {response.text}")
 
     return f"https://{REPO_OWNER}.github.io/{REPO_NAME}/{file_name}"
-
-
 
 # Function to check if the URL is valid using regular expressions
 def is_valid_url(url: str) -> bool:
@@ -154,7 +164,9 @@ async def generate_qr(request: QRRequest):
 
         return {"qr_code_url": github_url}
     
+    except HTTPException as e:
+        print(f"HTTP Exception: {e.detail}")
+        raise e
     except Exception as e:
-        # Log the exception for better debugging
-        print(f"Error: {e}")
+        print(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
