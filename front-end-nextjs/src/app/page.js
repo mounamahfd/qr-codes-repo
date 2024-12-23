@@ -8,22 +8,38 @@ export default function Home() {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState(""); // For handling existing QR code messages
+  const [imgError, setImgError] = useState(false); // Track if the image failed to load
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setMessage(""); // Reset the message
     try {
       const response = await axios.post("http://localhost:8000/generate-qr/", {
         url: url,
       });
-      setQrCodeUrl(response.data.qr_code_url);
+
+      console.log("QR code URL:", response.data.qr_code_url); // Log the URL
+
+      // If the response contains a message, display it
+      if (response.data.message) {
+        setMessage(response.data.message);
+      }
+
+      setQrCodeUrl(response.data.qr_code_url); // Set the QR code URL
     } catch (error) {
       console.error("Error generating QR Code:", error);
       setError("Failed to generate QR Code. Please try again.");
     } finally {
       setLoading(false);
     }
+};
+
+
+  const handleImageError = () => {
+    setImgError(true); // Set flag to true when image fails to load
   };
 
   return (
@@ -41,8 +57,22 @@ export default function Home() {
           {loading ? "Generating..." : "Generate QR Code"}
         </button>
       </form>
+      
+      {/* Display the message if QR code exists */}
+      {message && <p style={styles.message}>{message}</p>} 
+      
       {error && <p style={styles.error}>{error}</p>}
-      {qrCodeUrl && <img src={qrCodeUrl} alt="QR Code" style={styles.qrCode} />}
+      
+      {/* Display QR code */}
+      {qrCodeUrl && !message && (
+    <div>
+        <img src={qrCodeUrl} alt="QR Code" style={styles.qrCode} />
+    </div>
+)}
+
+
+      {/* Show error message if image fails to load */}
+      {imgError && <p style={styles.error}>Failed to load QR code image.</p>}
     </div>
   );
 }
@@ -87,9 +117,15 @@ const styles = {
   },
   qrCode: {
     marginTop: "20px",
+    width: "200px",
+    height: "200px",
   },
   error: {
     color: "red",
+    marginTop: "20px",
+  },
+  message: {
+    color: "green",
     marginTop: "20px",
   },
 };
